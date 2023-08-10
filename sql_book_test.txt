@@ -1,0 +1,209 @@
+-- database: d:\sql_learning\book.db
+
+-- Use the ▷ button in the top right corner to run the entire file.
+
+CREATE TABLE book(
+    book_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    title VARCHAR(50), 
+    author VARCHAR(30), 
+    price DECIMAL(8,2), 
+    amount INTEGER
+    );
+
+INSERT INTO book (title, author, price, amount) 
+VALUES ('Мастер и Маргарита', 'Булгаков М.А.', 670.99, 3),
+       ('Белая гвардия', 'Булгаков М.А.', 540.50, 5),
+       ('Идиот', 'Достоевский Ф.М.', 460.00, 10),
+       ('Братья Карамазовы', 'Достоевский Ф.М.', 799.01, 3),
+       ('Игрок', 'Достоевский Ф.М.', 480.50, 10),
+       ('Стихотворения и поэмы', 'Есенин С.А.', 650.00, 15);
+
+SELECT * FROM book;
+
+SELECT 
+    author AS Автор, 
+    COUNT(title) AS Различных_книг, 
+    SUM(amount) AS Количество_экземпляров 
+FROM book
+GROUP BY author;
+
+SELECT author, MIN(price) AS 'Минимальная цена'
+FROM book
+GROUP BY author;
+
+/*Вывести фамилию и инициалы автора, минимальную, максимальную и среднюю цену книг каждого автора . 
+Вычисляемые столбцы назвать Минимальная_цена, Максимальная_цена и Средняя_цена соответственно.*/
+SELECT author, 
+       MIN(price) AS Минимальная_цена, 
+       MAX(price) AS Максимальная_цена,
+       AVG(price) AS Средняя_цена
+FROM book
+GROUP BY author;    
+
+/*Для каждого автора вычислить суммарную стоимость книг S (имя столбца Стоимость), а также 
+вычислить налог на добавленную стоимость  для полученных сумм (имя столбца НДС) , который 
+включен в стоимость и составляет 18% (k=18),  а также стоимость книг (Стоимость_без_НДС) без 
+него. Значения округлить до двух знаков после запятой.*/
+SELECT author, 
+       SUM(price * amount) AS Стоимость,
+       ROUND(SUM(amount * price - amount * price / 118*100), 2) AS НДС,
+       ROUND(SUM(amount * price - (amount * price - amount * price / 118*100)),2) AS Стоимость_без_НДС
+FROM book
+GROUP BY author;    
+
+--Вычисления по таблице целиком
+SELECT SUM(amount) AS Количество
+FROM book;
+
+/*Вывести  цену самой дешевой книги, цену самой дорогой и среднюю цену уникальных книг на складе. Названия столбцов Минимальная_цена, Максимальная_цена, 
+Средняя_цена соответственно. Среднюю цену округлить до двух знаков после запятой.*/
+SELECT MIN(price) AS Минимальная_цена, 
+       MAX(price) AS Максимальная_цена,
+       ROUND(AVG(price), 2) AS Средняя_цена
+FROM book;
+
+/*Вычислить среднюю цену и суммарную стоимость тех книг, количество экземпляров которых 
+принадлежит интервалу от 5 до 14, включительно. Столбцы назвать Средняя_цена и Стоимость, 
+значения округлить до 2-х знаков после запятой.*/
+SELECT ROUND(AVG(price), 2) AS Средняя_цена, ROUND(SUM(price * amount), 2) AS Стоимость
+FROM book
+WHERE amount BETWEEN 5 AND 14;
+
+/*Посчитать стоимость всех экземпляров каждого автора без учета книг «Идиот» и «Белая гвардия». 
+В результат включить только тех авторов, у которых суммарная стоимость книг (без учета книг 
+«Идиот» и «Белая гвардия») более 5000 руб. Вычисляемый столбец назвать Стоимость. 
+Результат отсортировать по убыванию стоимости.*/
+SELECT author, SUM(price * amount) AS Стоимость
+FROM book
+WHERE title <> "Идиот" AND title <> "Белая гвардия"
+GROUP BY author
+HAVING SUM(price * amount) > 5000
+ORDER BY SUM(price * amount) DESC;
+
+/*Вывести информацию (автора, название и цену) о  книгах, цены которых меньше или равны средней
+цене книг на складе. Информацию вывести в отсортированном по убыванию цены виде. Среднее 
+вычислить как среднее по цене книги.*/
+SELECT author, title, price
+FROM book
+WHERE price <= (SELECT AVG(price) FROM book)
+ORDER BY price DESC;
+
+INSERT INTO book (title, author, price, amount)
+ VALUES ("Евгений Онегин", "Пушкин А.С.", 610.00, 10);
+
+ /*Вывести информацию (автора, название и цену) о тех книгах, цены которых превышают минимальную 
+ цену книги на складе не более чем на 150 рублей в \отсортированном по возрастанию цены виде.*/
+ SELECT author, title, price
+ FROM book
+ WHERE price <= (SELECT MIN(price) FROM book) + 150
+ ORDER BY price ASC;
+
+ /*Вывести информацию (автора, книгу и количество) о тех книгах, количество экземпляров которых 
+ в таблице book не дублируется.*/
+SELECT author, title, price
+  FROM book
+ WHERE amount IN (
+    SELECT amount 
+      FROM book
+  GROUP BY amount
+    HAVING COUNT(amount) = 1
+    );
+
+/*Вывести информацию о книгах(автор, название, цена), цена которых меньше самой большой из 
+минимальных цен, вычисленных для каждого автора.*/  
+SELECT author, title, price
+  FROM book
+ WHERE price < ANY (
+      SELECT MIN(price) 
+        FROM book 
+    GROUP BY author
+    );
+
+/*Посчитать сколько и каких экземпляров книг нужно заказать поставщикам, чтобы на складе стало 
+одинаковое количество экземпляров каждой книги, равное значению самого большего количества 
+экземпляров одной книги на складе. Вывести название книги, ее автора, текущее количество 
+экземпляров на складе и количество заказываемых экземпляров книг. Последнему столбцу присвоить 
+имя Заказ. В результат не включать книги, которые заказывать не нужно.*/    
+SELECT title, author, amount, (SELECT MAX(amount) FROM book) - amount AS Заказ
+FROM book
+WHERE Заказ > 0;
+
+CREATE TABLE supply(
+            supply_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            title VARCHAR(50),
+            author VARCHAR(30),
+            price DECIMAL(8,2),
+            amount INTEGER
+             );          
+
+/*Уменьшить на 10% цену тех книг в таблице book, количество которых принадлежит интервалу от 
+5 до 10, включая границы.*/
+UPDATE book
+SET price = 0.9 * price
+WHERE amount BETWEEN 5 AND 10;
+
+/*В таблице book необходимо скорректировать значение для покупателя в столбце buy таким образом, 
+чтобы оно не превышало количество экземпляров книг, указанных в столбце amount. А цену тех книг, 
+которые покупатель не заказывал, снизить на 10%.*/
+UPDATE book
+SET buy = amount
+WHERE buy > amount;
+UPDATE book
+SET price = 0.9 * price
+WHERE buy = 0;
+
+/*Для тех книг в таблице book которые есть в таблице supply не только увеличить их количество 
+в таблице book ( увеличить их количество на значение столбца amountтаблицы supply) но и 
+пересчитать их цену (для каждой книги найти сумму цен из таблиц book и supply и разделить на 2)*/
+UPDATE book, supply 
+SET book.amount = book.amount + supply.amount, book.price = (book.price + supply.price) / 2
+WHERE book.title = supply.title;
+
+INSERT INTO book(title, author, price, amount)
+VALUES ("Мастер и Маргарита", "Булгаков М.А.", 670.99, 3),
+       ("Белая гвардия", "Булгаков М.А.", 540.50, 5),
+       ("Идиот", "Достоевский Ф.М.", 460.00, 10),
+       ("Братья Карамазовы", "Достоевский Ф.М.", 799.01, 2),
+       ("Стихотворения и поэмы", "Есенин С.А.", 650.00, 15);
+
+SELECT * 
+FROM book;       
+
+DELETE FROM book;       
+
+
+INSERT INTO supply(title, author, price, amount)
+VALUES ("Лирика", "Пастернак Б.Л.", 518.99, 2),
+       ("Черный человек", "Есенин С.А.", 570.20, 6),
+       ("Белая гвардия", "Булгаков М.А.", 540.50, 7),
+       ("Идиот", "Достоевский Ф.М.", 360.80, 3);
+
+SELECT * 
+FROM supply;
+
+DELETE FROM supply;
+
+/*Удалить из таблицы supply книги тех авторов, общее количество экземпляров книг которых в 
+таблице book превышает 10.*/
+DELETE FROM supply
+WHERE author IN (SELECT author FROM book GROUP BY author HAVING SUM(amount) > 10);
+
+/*Создать таблицу заказ (ordering), куда включить авторов и названия тех книг, количество 
+экземпляров которых в таблице book меньше среднего количества экземпляров книг в таблице book. 
+В таблицу включить столбец   amount, в котором для всех книг указать одинаковое значение - 
+среднее количество экземпляров книг в таблице book.*/
+CREATE TABLE ordering AS
+SELECT author, title, (SELECT AVG(amount) FROM book) AS amount
+FROM book
+WHERE amount < (SELECT AVG(amount) FROM book);
+
+SELECT * 
+FROM ordering;
+
+
+
+
+
+
+ 
+
